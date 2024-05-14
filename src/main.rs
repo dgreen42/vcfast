@@ -1,4 +1,5 @@
 use csv::Writer;
+use sqlite;
 use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -32,8 +33,74 @@ fn main() {
             }
         }
     }
+    if option == "-sqlite" {
+        let file = open_file(path);
+        let mut full_name = name.clone();
+        full_name.push_str(".sqlite");
+        create_db(file, name);
+    }
     let duration = start.elapsed();
     println!("Time to complete: {:?}", duration);
+}
+
+fn create_db(file: BufReader<File>, file_name: String) {
+    if Path::new(&file_name).exists() {
+        println!(
+            "{} already exists, please move db so it is not overwritten",
+            &file_name
+        );
+    } else {
+        let con = sqlite::open(":memory:").unwrap();
+        let mut first_line = String::new();
+        let mut temp_file = file.lines();
+        assert!(first_line.is_empty());
+        while first_line.is_empty() {
+            let some_line = temp_file.next().unwrap().unwrap();
+            if some_line.starts_with("##") {
+                continue;
+            } else {
+                first_line.push_str(&some_line);
+            }
+        }
+        let mut q1 = String::from("CREATE TABLE ");
+        q1.push_str(&file_name);
+        q1.push_str(" VALUES (");
+        let data = tabs_to_commas(first_line);
+        let types = ;
+        q1.push_str(");");
+        println!("{:?}", q1);
+        con.execute(q1).unwrap();
+    }
+}
+
+fn tabs_to_commas(line: String) -> String {
+    let tab_sp = line.split("\t");
+    let mut commas = String::new();
+    let tab_last = tab_sp.clone().last().unwrap();
+    for element in tab_sp {
+        let fixed_element = remove_hash_tag(element);
+        commas.push_str(&fixed_element);
+        if element != tab_last {
+            commas.push_str(",");
+        }
+    }
+    commas
+}
+
+fn remove_hash_tag(element: &str) -> String {
+    let mut new = String::new();
+    let mut sp = element.chars();
+    let sp_l: Vec<char> = sp.clone().collect();
+    let sp_len = sp_l.len();
+    if sp.next().unwrap() == '#' {
+        for ch in 1..sp_len {
+            new.push_str(&sp_l[ch].to_string());
+        }
+    } else {
+        new.push_str(&element);
+    }
+    println!("{:?}", new);
+    new
 }
 
 fn get_info(line: &String) {
