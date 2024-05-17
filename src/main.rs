@@ -38,12 +38,63 @@ fn main() {
         let file = open_file(path);
         let mut full_name = name.clone();
         full_name.push_str(".sqlite");
-        create_db(file, name);
+        create_sqlite_table(file, name);
     }
     let duration = start.elapsed();
     println!("Time to complete: {:?}", duration);
 }
 
+fn create_sqlite_table(file: BufReader<File>, table_name: String) {
+    let mut first_line = String::new();
+    let mut temp_file = file.lines();
+    assert!(first_line.is_empty());
+    while first_line.is_empty() {
+        let some_line = temp_file.next().unwrap().unwrap();
+        if !some_line.starts_with("#CHROM") {
+            continue;
+        } else {
+            first_line.push_str(&some_line);
+        }
+    }
+    let mut types = String::from("TEXT,INTEGER,TEXT,TEXT,TEXT,FLOAT,TEXT,BLOB,BLOB,");
+    let first_line_split = first_line.split("\t");
+    let flc: Vec<_> = first_line_split.clone().collect();
+    let first_line_len = &flc.len();
+    let sub = 9 as usize;
+    let add_blobs = first_line_len - sub;
+
+    for add in 0..add_blobs {
+        if add != &add_blobs - 1 {
+            types.push_str("BLOB,");
+        } else {
+            types.push_str("BLOB");
+        }
+    }
+
+    let type_vec: Vec<_> = types.split(",").collect();
+    let mut columns: Vec<(String, String)> = Vec::new();
+    let mut counter = 0;
+    for header in first_line_split.clone() {
+        columns.push((header.to_string(), type_vec[counter].to_string()));
+        counter += 1;
+    }
+    println!("{:?}", columns);
+
+    let con = Connection::open("mt_snps.db").expect("Could not create db");
+    let create_table = format!(
+        "CREATE TABLE IF NOT EXISTS {} ({})",
+        table_name,
+        columns
+            .iter()
+            .map(|(name, data_type)| format!("{} {}", name, data_type))
+            .collect::<Vec<String>>()
+            .join(",")
+    );
+
+    con.execute(&create_table, [])
+        .expect("Did not create table");
+}
+/*
 fn create_db(file: BufReader<File>, file_name: String) {
     if Path::new(&file_name).exists() {
         println!(
@@ -51,7 +102,7 @@ fn create_db(file: BufReader<File>, file_name: String) {
             &file_name
         );
     } else {
-        let con = Connection::open_in_memory().expect("Could not create db");
+        let con = Connection::open(file_name).expect("Could not create db");
         let mut first_line = String::new();
         let mut temp_file = file.lines();
         let mut line_count = 0;
@@ -103,7 +154,7 @@ fn create_db(file: BufReader<File>, file_name: String) {
         }
     }
 }
-
+*/
 fn put_together(data: String, types: String) -> String {
     let final_string = String::new();
 
