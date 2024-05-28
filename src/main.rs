@@ -27,7 +27,7 @@ fn main() {
         let mut wrt = Writer::from_path(&name).unwrap();
         for line in file.lines() {
             let line = line.unwrap();
-            if !line.starts_with("##") {
+            if !line.contains("##") {
                 get_info(&line);
             } else {
                 println!("meta data is being skipped. Use option -meta to write meta data file");
@@ -75,12 +75,21 @@ fn create_sqlite_table(file: BufReader<File>, table_name: String) {
     let mut columns: Vec<(String, String)> = Vec::new();
     let mut counter = 0;
     for header in first_line_split.clone() {
-        columns.push((header.to_string(), type_vec[counter].to_string()));
+        if header.starts_with('#') {
+            columns.push((
+                header.to_string().to_lowercase().remove(0).to_string(),
+                type_vec[counter].to_string(),
+            ));
+        } else {
+            columns.push((
+                header.to_string().to_lowercase().to_string(),
+                type_vec[counter].to_string(),
+            ));
+        }
         counter += 1;
     }
-    println!("{:?}", columns);
 
-    let con = Connection::open("mt_snps.db").expect("Could not create db");
+    //let con = Connection::open("mt_snps.db").expect("Could not create db");
     let create_table = format!(
         "CREATE TABLE IF NOT EXISTS {} ({})",
         table_name,
@@ -91,8 +100,9 @@ fn create_sqlite_table(file: BufReader<File>, table_name: String) {
             .join(",")
     );
 
-    con.execute(&create_table, [])
-        .expect("Did not create table");
+    println!("{:?}", create_table);
+    //con.execute(&create_table, [])
+    //   .expect("Did not create table");
 }
 /*
 fn create_db(file: BufReader<File>, file_name: String) {
@@ -233,7 +243,7 @@ fn write_meta_data(file: BufReader<File>, name: String) {
         let mut write_file = File::options().append(true).open(&file_name).unwrap();
         for line in file.lines() {
             let line = line.unwrap();
-            if line.starts_with("##") {
+            if line.contains("##") {
                 writeln!(&mut write_file, "{}", line).expect("could not write line");
             } else {
                 break;
